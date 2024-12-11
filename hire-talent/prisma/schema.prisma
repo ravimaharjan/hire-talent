@@ -1,0 +1,158 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(uuid()) // Use UUID as the primary key
+  email     String     @unique
+  password  String
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  roles     UserRole[]
+  zipcode   String
+  country   String
+  phone     String
+  userType  UserType
+
+  SubscriptionUser SubscriptionUser[]
+  Freelancer_Id    Job[]              @relation(name: "freelancer")
+
+  Employer_Id       Job[]              @relation(name: "employer")
+  FreeLancerProfile FreeLancerProfile?
+}
+
+model Role {
+  id          String           @id @default(uuid()) // Use UUID as the primary key
+  role_name   String
+  permissions RolePermission[]
+  userRoles   UserRole[]
+}
+
+model Permission {
+  id              String           @id @default(uuid()) // Use UUID as the primary key
+  permission_name String
+  resource        String // e.g., "User", "Invite", "Request", "Document"
+  action          String // e.g., "Create", "Edit", "Delete", "Send", etc.
+  roles           RolePermission[]
+}
+
+model UserRole {
+  user_id String
+  role_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role    Role   @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, role_id])
+}
+
+model RolePermission {
+  role_id       String
+  permission_id String
+  role          Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@id([role_id, permission_id])
+}
+
+model FreeLancerProfile {
+  id             String           @id @default(uuid())
+  title          String
+  about          String
+  currentCompany String
+  currentSalary  Float
+  looking_for    String
+  skills         String
+  user           User             @relation(fields: [user_id], references: [id])
+  user_id        String           @unique
+  workExperience WorkExperience[]
+}
+
+model WorkExperience {
+  id            String            @id @default(uuid())
+  title         String
+  companyName   String
+  startDate     String
+  endDate       String
+  description   String
+  freelancer    FreeLancerProfile @relation(fields: [freelancer_id], references: [id])
+  freelancer_id String
+}
+
+model Job {
+  id            String    @id @default(uuid())
+  job_title     String
+  status        JobStatus
+  freelancer    User?     @relation(name: "freelancer", fields: [freelancer_id], references: [id])
+  freelancer_id String    @unique
+  employer      User?     @relation(name: "employer", fields: [employer_id], references: [id])
+  employer_id   String    @unique
+  paid          Float
+}
+
+model Employer {
+  id                  String                     @id @default(uuid())
+  company_name        String
+  about_company       String
+  subscription        Subscription               @relation(fields: [subscription_id], references: [id])
+  subscription_id     String
+  subscription_status EmployerSubscriptionStatus
+  subscription_type   EmployerSubscription
+}
+
+model Subscription {
+  id               String             @id @default(uuid()) // Use UUID as the primary key
+  plan_name        String // Basic, Pro, Enterprise
+  price_permonth   Float
+  SubscriptionUser SubscriptionUser[]
+  Employer         Employer[]
+}
+
+model SubscriptionUser {
+  id                     String       @id @default(uuid())
+  user                   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                 String
+  subscription           Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId         String
+  status                 String
+  stripe_customer_id     String
+  stripe_subscription_id String
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+}
+
+enum UserType {
+  Freelancer
+  Employer
+}
+
+enum JobStatus {
+  Interest_Sent
+  Interviewing
+  Cancelled
+  Hired
+}
+
+enum EmployerSubscription {
+  Basic
+  Professional
+  Enterprise
+}
+
+enum EmployerSubscriptionStatus {
+  Pending
+  Active
+  Disabled
+  Expired
+}
